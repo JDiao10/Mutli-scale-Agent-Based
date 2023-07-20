@@ -48,7 +48,8 @@ SuscepN=I0+1:params.N;
 Ytime=0;
         
   
-for tt = TimeStep:TimeStep:params.T
+for ii = 1:params.T/TimeStep
+    tt = ii*TimeStep;
     if ~condition(states(end,:))
         InfectPeople = []; % Record the infected people being recover for each time step
         for j = 1:length(InfectN)

@@ -82,7 +82,7 @@ for ii = max(Ytime)/TimeStep+1:params.EndT/TimeStep
                
                 if length(SuscepN)>0
                     ContactN = round(poissrnd(params.Arrival*TimeStep));
-                    Contact = binornd(ContactN,length(SuscepN)/params.N);
+                    Contact = binornd(ContactN,length(SuscepN)/(params.N-1));
 
                     if Contact>0
                         SuscepPeople=[];

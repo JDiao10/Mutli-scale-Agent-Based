@@ -1,4 +1,4 @@
-function [Ytime,states,InfectIdtau,agent,Isolation]=ABM_TIV_Policy(model,IntStartT,DurationT,OnlyH,HwithL,seed)
+function [Ytime,states,InfectIdtau,agent,Isolation,Isolation_TN,DailyIsolation]=ABM_TIV_Policy(model,IntStartT,DurationT,OnlyH,HwithL,seed)
 rng(seed)
 beta_tau=model.beta_tau;
 Get_beta=beta_tau{1};
@@ -15,6 +15,7 @@ minP = params.minP;
 range = params.changeP;
 ModelType = params.ModelType;
 NoTest = params.NoTest;
+IsoDur = params.IsolationDurtion;
 
 % Record the person is infected at time \tau
 
@@ -30,6 +31,8 @@ for i = 1:params.N
     agent(i).Ptest = zeros(params.EndT/TimeStep+1,1);
     agent(i).Pposit = zeros(params.EndT/TimeStep+1,1);
     agent(i).TestTime = [];
+    agent(i).Isolation = 0;
+    agent(i).IsolationLeave=0;
 end
 
 InfectN=1:I0;
@@ -54,7 +57,7 @@ for i = 1:length(InfectN)
 end
 
 InfectIdtau{1} = InfectN;
-
+DailyIsolation = zeros(1,params.EndT/TimeStep+1);
 states = [sum([agent(:).S]) sum([agent(:).I]) sum([agent(:).R])];
 % Record the Susceptiable individual number
 SuscepN=I0+1:params.N;
@@ -77,44 +80,46 @@ SuscepN=max(InfectIdtau{end})+1:params.N;
 for ii = 1:params.EndT/TimeStep
     tt=ii*TimeStep;
 
-% Need to change this part (first need to get test
+% Need to change this part (first need to get test)
     if tt <= DurationT & tt>=IntStartT
         TestInfectN=InfectN(find([agent(InfectN).Test]>0));
         for i = 1:length(TestInfectN)
+            if tt<=agent(TestInfectN(i)).RecoverT
             % Infected hosts go for test
-            if rand<agent(TestInfectN(i)).Ptest(ii)
-                agent(TestInfectN(i)).Test = agent(TestInfectN(i)).Test-1;
-                agent(TestInfectN(i)).TestTime = [agent(TestInfectN(i)).TestTime [tt;0]];
-                % Test positive
-                if rand<agent(TestInfectN(i)).Pposit(ii)
-                    agent(TestInfectN(i)).TestTime(2,end)=1;
-                    if isolate_policy(OnlyH,HwithL)==1
-                        if agent(TestInfectN(i)).betta(ii)>=params.BetaStar
-                            Isolation = [Isolation TestInfectN(i)];
-                        end
-                    elseif isolate_policy(OnlyH,HwithL) == 2  
-                            Isolation = [Isolation TestInfectN(i)];                     
-                    elseif isolate_policy(OnlyH,HwithL) == 3
-                        if  agent(TestInfectN(i)).betta(ii)<params.BetaStar
-                            Isolation = [Isolation TestInfectN(i)];
+                if rand<agent(TestInfectN(i)).Ptest(ii)
+                    agent(TestInfectN(i)).Test = agent(TestInfectN(i)).Test-1;
+                    agent(TestInfectN(i)).TestTime = [agent(TestInfectN(i)).TestTime [tt;0]];
+                    % Test positive
+                    if rand<agent(TestInfectN(i)).Pposit(ii)
+                        agent(TestInfectN(i)).TestTime(2,end)=1;
+                        if isolate_policy(OnlyH,HwithL)==1
+                            if agent(TestInfectN(i)).betta(ii)>=params.BetaStar
+                                Isolation = [Isolation TestInfectN(i)];
+                                agent(TestInfectN(i)).Isolation = tt;
+                                agent(TestInfectN(i)).IsolationLeave = tt+IsoDur;
+                                DailyIsolation(ii) = DailyIsolation(ii)+1;
+                            end
+                        elseif isolate_policy(OnlyH,HwithL) == 2  
+                                Isolation = [Isolation TestInfectN(i)];
+                                agent(TestInfectN(i)).Isolation = tt;
+                                agent(TestInfectN(i)).IsolationLeave = tt+IsoDur;
+                                DailyIsolation(ii) = DailyIsolation(ii)+1;
+                        elseif isolate_policy(OnlyH,HwithL) == 3
+                            if  agent(TestInfectN(i)).betta(ii)<params.BetaStar
+                                Isolation = [Isolation TestInfectN(i)];
+                                agent(TestInfectN(i)).Isolation = tt;
+                                agent(TestInfectN(i)).IsolationLeave = tt+IsoDur;
+                                DailyIsolation(ii) = DailyIsolation(ii)+1;
+                            end
                         end
                     end
+    
                 end
-
             end
             
         end
-        % agentBetta=[];
-        % for i = 1:length(NoTestInfectN)
-        %     agentBetta(i) = agent(NoTestInfectN(i)).betta(single(max(Ytime)/TimeStep)+1);
-        % end
-        % LowVl = find(agentBetta<=0.1);
-        % if length(LowVl)>=1
-        %     Isolation = [Isolation NoTestInfectN(LowVl(randperm(length(LowVl),round(IntPre*length(LowVl)))))];
-        %     for j = 1:length(LowVl)
-        %         agent(NoTestInfectN(LowVl(j))).Test= 0;
-        %     end
-        % end
+        
+
     end
 
 
@@ -123,16 +128,27 @@ for ii = 1:params.EndT/TimeStep
     InfectN(ismember(InfectN,Isolation)) = [];
     if length(Isolation)>=1
         RecoverIso = [];
+        RelaseISo = [];
         for i = 1:length(Isolation)
-            if tt>agent(Isolation(i)).RecoverT
+            if tt>=agent(Isolation(i)).RecoverT
                 agent(Isolation(i)).I = 0;
                 agent(Isolation(i)).R = 1;   
                 RecoverIso = [RecoverIso i];
-            end            
+            else
+                if tt>agent(Isolation(i)).IsolationLeave    
+                    RelaseISo = [RelaseISo i];
+                end
+            end
+            
         end
         Isolation(RecoverIso)=[];
+        if length(RelaseISo)>=1
+            InfectN = [InfectN Isolation(RelaseISo)];
+            Isolation(RelaseISo)=[];
+        end
+        
     end
-
+    Isolation_TN(ii) = length(Isolation);
 
 
     if ~condition(states(end,:))

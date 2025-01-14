@@ -1,41 +1,40 @@
 dt = 1/24;
 params.Arrival=1;
-params.betamax=0.6;
+params.betamax=0.3;
 params.N=20000;
 params.I0=10;
 params.VC=10;
 params.IntT = dt;
 params.xi = 2;
-params.EndT = 250;
+params.EndT = 300;
 params.lam=0;
 params.k=0;
-params.ModelType = 1;
-params.Ph=0.8;
-params.Pl=0.2;
+params.ModelType = 2;
+params.Ph=0.5;
+params.Pl=0.1;
 params.minP = 0.5;
 params.changeP = 0.3;
-params.shape = 2;
 params.NoTest = 100;
 params.BetaStar = 2/3*params.betamax;
 params.FoC = 0.01; % Flu is 0.01, Covid is 0.1
-params.IsolationDurtion = 7;
+params.IsolationDurtion = 14;
 
 % TIV params
-paramsT.Beta_I= [2.7*10^-5 3.2*10^-5];
-paramsT.delta =[4 5.2];
-paramsT.p = [1.2*10^-2 4.6*10^-2];
-paramsT.c = [3 5.2];
+paramsT.Beta_I= 4.71*10^-8;
+paramsT.delta =1.07;
+paramsT.p = 3.07;
+paramsT.c = 2.40;
 paramsT.IntT = dt;
 paramsT.T0 = 4*10^8;
 paramsT.L0=0;
 paramsT.I0=0;
-paramsT.V0=[9.3*10^-2 7.5*10^-2];
-paramsT.maxT = 15;
+paramsT.maxT = 21;
 paramsT.k = 4;
 paramsT.modelNum = 1;
 params.VL_50 = 1000;
 
 beta_tau = {@(x) params.betamax*x.^params.xi./(x.^params.xi+params.VL_50^params.xi)};
+
 
 condition = @(x) x(2)==0;
 
@@ -45,32 +44,29 @@ model.params=params;
 model.condition=condition;
 model.beta_tau=beta_tau;
 
+
 states_MC_H ={};
 states_MC_B={};
 states_MC_SF = {};
-
-agent_TestTime_H = {};
 agent_InfectRecoverTime_H = {};
 agent_TestTime_B = {};
 agent_InfectRecoverTime_B = {};
 agent_TestTime_SF = {};
 agent_InfectRecoverTime_SF = {};
-IsolationList_H = {};
-IsolationList_B = {};
-IsolationList_SF = {};
-IsolationTime_H = {};
-IsolationTime_B = {};
-IsolationTime_SF = {};
+agent_sym_H = {};
+agent_sym_B ={};
+agent_sym_SF ={};
+Vstar = params.betamax*2/3;
+
 
 for i = 1:100
-
-    seed = 1:100;
-    seed(3) = seed(5);
-    [Ytime_H, states_H,InfectIdtau_H,agent_H,~,Isolation_H,DailyIsolation_H] = ABM_TIV_Policy(model,5,params.EndT,1,0,seed(i));
+    
+    
+    [Ytime_H, states_H,InfectIdtau_H,agent_H,~,Isolation_H,DailyIsolation_H] = ABM_TIV_Policy(model,10,params.EndT,1,0,i);
 
     states_MC_H{i}=states_H;
 
-
+    StepTime = 1/24;
 
     InfectList = max(find([agent_H(:).R]==1));
     for I = 1:InfectList
@@ -79,10 +75,9 @@ for i = 1:100
     end
     IsolationList_H{i} = Isolation_H;
     DailyIsolationList_H(i,:)=DailyIsolation_H;
-    CummulativeIso_H(i) = sum(DailyIsolation_H);
+    CummulativeIso_H(i) = sum(DailyIsolation_H);     
 
-    StepTime = 1/24;
-    [Ytime_B, states_B,InfectIdtau_B,agent_B,~,Isolation_B,DailyIsolation_B] = ABM_TIV_Policy(model,5,params.EndT,1,1,seed(i));
+    [Ytime_B, states_B,InfectIdtau_B,agent_B,~,Isolation_B,DailyIsolation_B] = ABM_TIV_Policy(model,10,params.EndT,1,1,i);
 
     states_MC_B{i}=states_B;
     
@@ -95,7 +90,6 @@ for i = 1:100
     IsolationList_B{i} = Isolation_B;
     DailyIsolationList_B(i,:)=DailyIsolation_B;
     CummulativeIso_B(i) = sum(DailyIsolation_B);
-
     Beta_incMT{i}={};
     Beta_decMT{i}={};
     NoIMT(i) = states_MC_B{i}(end,3);
@@ -113,44 +107,37 @@ for i = 1:100
         end
     end
 
-    
     Peaktime = max(find(states_B(:,2)==max(states_B(:,2))));
     params.EndT = ceil(Peaktime/24);
     model.params=params;
-    [Ytime_BL, states_BL,InfectIdtau_BL,agent_BL,Isolation_BL,Isolation_TN_BL,DailyIsolation_BL] = ABM_TIV_Policy(model,5,params.EndT,1,1,seed(i));
+    [Ytime_BL, states_BL,InfectIdtau_BL,agent_BL,Isolation_BL,Isolation_TN_BL,DailyIsolation_BL] = ABM_TIV_Policy(model,10,params.EndT,1,1,i);
     
-    params.EndT = 250;
+    params.EndT = 300;
     model.params=params;
     [Ytime_SF, states_SF,InfectIdtau_SF,agent_SF,~,Isolation_SF,DailyIsolation_SF] = ABM_TIV_Policy_Conti(model,...
-        Ytime_BL, states_BL,InfectIdtau_BL,agent_BL,Isolation_BL,ceil(Peaktime/24),params.EndT,1,0,seed(i),Isolation_TN_BL,DailyIsolation_BL);
+        Ytime_BL, states_BL,InfectIdtau_BL,agent_BL,Isolation_BL,ceil(Peaktime/24),params.EndT,1,0,i,Isolation_TN_BL,DailyIsolation_BL);
     states_MC_SF{i}=states_SF;
-
+    
     InfectList = max(find([agent_SF(:).R]==1));
     for I = 1:InfectList
         agent_TestTime_SF{I,i} = agent_SF(I).TestTime;
         agent_InfectRecoverTime_SF{I,i}= [agent_SF(I).InfectT agent_SF(I).RecoverT];
     end
 
-    Beta_incMT{i} = cell2mat(Beta_incMT{i});
-    Beta_decMT{i} = cell2mat(Beta_decMT{i});
-    
-    
     IsolationList_SF{i} = Isolation_SF;
     DailyIsolationList_SF(i,:)=DailyIsolation_SF;
     CummulativeIso_SF(i) = sum(DailyIsolation_SF);
-
     clear agent_H agent_B agent_SF
-
+    Beta_incMT{i} = cell2mat(Beta_incMT{i});
+    Beta_decMT{i} = cell2mat(Beta_decMT{i});
 end
 
-%save("MC100_Flu_Data_PolicyH_MT.mat","states_MC_H","agent_InfectRecoverTime_H","agent_TestTime_H")
+%save("MC100_Covid_Data_PolicyH_MT.mat","states_MC_H","agent_InfectRecoverTime_H","agent_TestTime_H")
 
-%save("MC100_Flu_Data_PolicyB_MT.mat",'states_MC_B','agent_TestTime_B','agent_InfectRecoverTime_B','Beta_incMT','Beta_decMT')
+% save("MC100_Covid_Data_PolicyB_MT.mat",'states_MC_B','agent_TestTime_B','agent_InfectRecoverTime_B','Beta_incMT','Beta_decMT')
+% 
+% save("MC100_Policydata_Covid_StopL_MT.mat",'states_MC_SF','agent_TestTime_SF','agent_InfectRecoverTime_SF')
 
-%save("MC100_Policydata_Flu_StopL_MT.mat",'states_MC_SF','agent_TestTime_SF','agent_InfectRecoverTime_SF')
-
-save("MC100_Flu_Data_Policy_Isolation_MT.mat","states_MC_H","states_MC_B","states_MC_SF",...
+save("MC100_COVID_Data_Policy_Isolation_MT.mat","states_MC_H","states_MC_B","states_MC_SF",...
     "IsolationList_H","IsolationList_B","IsolationList_SF","DailyIsolationList_H",...
     "DailyIsolationList_B","DailyIsolationList_SF","CummulativeIso_H","CummulativeIso_B","CummulativeIso_SF")
-
-

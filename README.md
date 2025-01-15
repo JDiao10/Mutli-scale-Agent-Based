@@ -5,5 +5,7 @@ TIV.m is the basic target-limited cell (TIV) model that can generate the state o
 ABM_TIV.m is the agent-based model that needs to have the parameters to run;
 
 ## Policy_making
+To implement different testing-isolation strategies (isolate all, isolate high, adaptive) and save the simulated data.
 
 ## Plot_Code
+Generating figures based on the simulated data from Policy_making.

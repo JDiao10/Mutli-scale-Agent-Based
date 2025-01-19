@@ -1,5 +1,4 @@
-# Code for generating results of the paper "Should public health policy exempt cases with low viral load from isolation during an epidemic?: a modelling study". (Multi-scale agent-based model link within-host dynamics and population dynamics, and including intervention)
-
+# Code for generating results of the paper "Should public health policy exempt cases with low viral load from isolation during an epidemic?: a modelling study". 
 ## The Basic_code folder is the SIR-TIV agent-based model, including TIV.m and AMB_TIV.m
 TIV.m is the basic target-limited cell (TIV) model that can generate the state of T, I, V at different time steps;
 
